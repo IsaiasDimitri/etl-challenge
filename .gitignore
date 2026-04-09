@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+.DS_Store
+
+# Dagster local state
+.dagster/
+
+# IDE
+.vscode/

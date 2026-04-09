@@ -1,0 +1,110 @@
+services:
+  db_source:
+    image: postgres:16-alpine
+    container_name: db_source
+    environment:
+      POSTGRES_USER: iot
+      POSTGRES_PASSWORD: iot
+      POSTGRES_DB: source_db
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iot -d source_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - db_source_data:/var/lib/postgresql/data
+
+  db_target:
+    image: postgres:16-alpine
+    container_name: db_target
+    environment:
+      POSTGRES_USER: etl
+      POSTGRES_PASSWORD: etl
+      POSTGRES_DB: target_db
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U etl -d target_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - db_target_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+    container_name: source_api
+    environment:
+      SOURCE_DB_URL: postgresql+psycopg2://iot:iot@db_source:5432/source_db
+      TARGET_DB_URL: postgresql+psycopg2://etl:etl@db_target:5432/target_db
+      SOURCE_API_URL: http://api:8000
+      DAGSTER_HOME: /opt/dagster/dagster_home
+    command: >
+      sh -c "python -m app.scripts.init_source &&
+             uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      db_source:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  bootstrap_source:
+    build:
+      context: .
+    container_name: bootstrap_source
+    environment:
+      SOURCE_DB_URL: postgresql+psycopg2://iot:iot@db_source:5432/source_db
+      TARGET_DB_URL: postgresql+psycopg2://etl:etl@db_target:5432/target_db
+      SOURCE_API_URL: http://api:8000
+      DAGSTER_HOME: /opt/dagster/dagster_home
+    command: python -m app.scripts.bootstrap_source --days 10 --seed 42
+    depends_on:
+      db_source:
+        condition: service_healthy
+    restart: "no"
+
+  dagster_webserver:
+    build:
+      context: .
+    container_name: dagster_webserver
+    environment:
+      SOURCE_DB_URL: postgresql+psycopg2://iot:iot@db_source:5432/source_db
+      TARGET_DB_URL: postgresql+psycopg2://etl:etl@db_target:5432/target_db
+      SOURCE_API_URL: http://api:8000
+      DAGSTER_HOME: /opt/dagster/dagster_home
+    command: >
+      sh -c "python -m app.scripts.init_target &&
+             dagster-webserver -h 0.0.0.0 -p 3000 -m app.orchestration.definitions"
+    depends_on:
+      api:
+        condition: service_started
+      db_target:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - dagster_home:/opt/dagster/dagster_home
+
+  dagster_daemon:
+    build:
+      context: .
+    container_name: dagster_daemon
+    environment:
+      SOURCE_DB_URL: postgresql+psycopg2://iot:iot@db_source:5432/source_db
+      TARGET_DB_URL: postgresql+psycopg2://etl:etl@db_target:5432/target_db
+      SOURCE_API_URL: http://api:8000
+      DAGSTER_HOME: /opt/dagster/dagster_home
+    command: dagster-daemon run -m app.orchestration.definitions
+    depends_on:
+      dagster_webserver:
+        condition: service_started
+    volumes:
+      - dagster_home:/opt/dagster/dagster_home
+
+volumes:
+  db_source_data:
+  db_target_data:
+  dagster_home:
