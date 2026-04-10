@@ -1,4 +1,4 @@
-# Delfos Energy — ETL IoT com FastAPI + Dagster
+# ETL com FastAPI + Dagster
 
 Pipeline completo de extração, transformação e carga de dados IoT. Sistema simulado com dois bancos Postgres (fonte e alvo), API FastAPI como conector de leitura, ETL diário consumindo dados via HTTP e agregando em janelas de 10 minutos, orquestrado com Dagster.
 
@@ -33,10 +33,11 @@ Pipeline completo de extração, transformação e carga de dados IoT. Sistema s
 
 ## Subir a stack
 
-### 1. Clone ou navegue para o diretório do projeto
+### 1. Clone o projeto
 
 ```bash
-cd /home/isaias/workspace/personal/delfos-energy
+git clone https://github.com/IsaiasDimitri/etl-challenge.git
+cd etl-challenge
 ```
 
 ### 2. Configure variáveis de ambiente (opcional)
@@ -154,7 +155,7 @@ Para materializar via UI:
 ## Estrutura de diretórios
 
 ```
-delfos-energy/
+etl-challenge/
 ├── README.md                       # Este arquivo
 ├── docker-compose.yaml             # Orquestração dos serviços
 ├── Dockerfile                      # Imagem Python
