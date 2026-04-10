@@ -47,34 +47,16 @@ Copie `.env.example` para `.env` se precisar alterar valores padrão:
 cp .env.example .env
 ```
 
-Os valores padrão já funcionam para rodar localmente:
-- Banco fonte: `iot` / `iot`
-- Banco alvo: `etl` / `etl`
-- API: `http://localhost:8000`
+Os valores padrão já funcionam para rodar localmente.
 
 ### 3. Construa as imagens e inicie os serviços
 
 ```bash
 docker compose up -d --build
-```
-
-Isso vai:
-1. Construir a imagem Docker com dependências Python
-2. Subir dois containers Postgres (porta 5433 para fonte, 5434 para alvo)
-3. Executar API FastAPI (porta 8000)
-4. Executar bootstrap que carrega 10 dias de dados (14.400 registros na fonte)
-5. Subir Dagster webserver (porta 3000) e daemon
-6. Inicializar schema do banco alvo com catálogo de sinais
-
-**Tempo esperado**: ~2-3 minutos na primeira execução.
-
-### 4. Valide que tudo está rodando
-
-```bash
 docker compose ps
 ```
 
-Você deve ver 6 containers em estado "Up":
+Você deve ver 6 containers:
 - `db_source` (healthy)
 - `db_target` (healthy)
 - `source_api` (running)
@@ -92,11 +74,12 @@ A API expõe a rota `/data` para ler dados do banco fonte com filtros:
 # Buscar wind_speed e power do primeiro dia
 curl -sS "http://localhost:8000/data?start=2026-03-30T00:00:00Z&end=2026-03-30T23:59:59Z&signals=wind_speed&signals=power" | jq .
 ```
+> O filtro "signals" e obrigatorio. O banco foi populado com dados da data 2026-03-30 ate 2026-04-08, totalizando 10 dias.
 
 **Parâmetros:**
-- `start` (ISO 8601, UTC): data/hora início (inclusive)
-- `end` (ISO 8601, UTC): data/hora fim (exclusive)
-- `signals` (repetido): variáveis desejadas — `wind_speed`, `power`, `ambient_temprature`
+- `start` (ISO 8601, UTC): data/hora início
+- `end` (ISO 8601, UTC): data/hora fim
+- `signals`: variáveis possiveis — `wind_speed`, `power`, `ambient_temprature`
 
 **Resposta:**
 ```json
